@@ -304,6 +304,95 @@ async function createScene(engine, canvas) {
   ui.addControl(voiceButton);
 
 
+      // ======================== AI Object Recognition (TensorFlow.js COCO-SSD) ======================
+  const aiVideo = document.getElementById("aiVideo");
+  let aiModel = null;
+  let aiEnabled = false;
+  let aiVideoStream = null;
+
+  async function startAI() {
+    try {
+      statusText.text = "Starting AI...";
+      aiVideoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      aiVideo.srcObject = aiVideoStream;
+
+      if (!aiModel) {
+        statusText.text = "Loading AI model...";
+        aiModel = await cocoSsd.load();
+      }
+
+      aiEnabled = true;
+      aiButton.textBlock.text = "AI: ON";
+      statusText.text = "AI activated (object recognition).";
+
+      requestAnimationFrame(aiDetectionLoop);
+    } catch (err) {
+      console.error("AI init failed:", err);
+      statusText.text = "AI could not be started (camera blocked or not available).";
+    }
+  }
+
+  function stopAI() {
+    aiEnabled = false;
+    aiButton.textBlock.text = "AI: OFF";
+    statusText.text = "AI deactivated.";
+
+    if (aiVideoStream) {
+      aiVideoStream.getTracks().forEach((track) => track.stop());
+      aiVideoStream = null;
+    }
+  }
+
+  async function aiDetectionLoop() {
+    if (!aiEnabled || !aiModel) return;
+
+    try {
+      const predictions = await aiModel.detect(aiVideo);
+      if (predictions && predictions.length > 0) {
+        const best = predictions[0];
+        const label = best.class;
+        const score = Math.round(best.score * 100);
+        statusText.text = `AI: Detected ${label} (${score}%)`;
+      }
+    } catch (e) {
+      console.warn("AI detection error:", e);
+    }
+
+    requestAnimationFrame(aiDetectionLoop);
+  }
+
+// AI-Toggle-Button
+const aiButton = BABYLON.GUI.Button.CreateSimpleButton("aiBtn", "AI: OFF");
+aiButton.width = "250px";
+aiButton.height = "50px";
+aiButton.cornerRadius = 10;
+aiButton.thickness = 2;
+aiButton.color = "#000000";
+aiButton.background = "#FFD700"; // Gold
+
+aiButton.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+aiButton.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+
+aiButton.paddingLeft = "130px";   
+aiButton.paddingBottom = "20px";
+
+aiButton.onPointerUpObservable.add(() => {
+  if (!aiEnabled) {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      startAI();
+    } else {
+      statusText.text = "No AI support (mediaDevices API missing).";
+    }
+  } else {
+    stopAI();
+  }
+});
+
+ui.addControl(aiButton);
+
+
+
+
   // ========================= VOICE RECOGNITION =========================
 
 console.log("DEBUG: Entering voice recognition setup…");  
@@ -744,7 +833,7 @@ console.log("DEBUG: Voice setup finished.");
       // spawn faster as waves go up
       spawnInterval = Math.max(600, 2000 - (wave - 1) * 200);
       shieldUsedThisWave = false;
-      statusText.text = `Wave ${wave} begins. Shield orb reset.`;
+      statusText.text = `Wave ${wave} begins. Shield orb reset.`; 
     }
   });
 
