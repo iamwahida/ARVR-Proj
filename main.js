@@ -265,7 +265,7 @@ async function createScene(engine, canvas) {
   difficultyButton.height = "40px";
   difficultyButton.cornerRadius = 10;
   difficultyButton.thickness = 1;
-  difficultyButton.color = "#000000"; // Black text on light button
+  difficultyButton.color = "#000000"; 
   difficultyButton.background = "#CCCCCC";
   difficultyButton.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
   difficultyButton.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
@@ -284,63 +284,89 @@ async function createScene(engine, canvas) {
   });
   ui.addControl(difficultyButton);
 
-  // Voice control button
-  const voiceButton = BABYLON.GUI.Button.CreateSimpleButton("voiceBtn", "Voice: OFF");
-  voiceButton.width = "150px";
-  voiceButton.height = "40px";
-  voiceButton.cornerRadius = 10;
-  voiceButton.thickness = 1;
-  voiceButton.color = "#000000"; // Black text on light button
-  voiceButton.background = "#CCCCFF";
-  voiceButton.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-  voiceButton.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP;
-  voiceButton.paddingRight = "10px";
-  voiceButton.paddingTop = "40px";
+   // Voice control button – TESTVERSION: groß, in der Mitte, ganz oben
+  const voiceButton = BABYLON.GUI.Button.CreateSimpleButton(
+    "voiceBtn",
+    "VOICE: OFF"
+  );
+  voiceButton.width = "180px";
+  voiceButton.height = "70px";
+  voiceButton.cornerRadius = 20;
+  voiceButton.thickness = 3;
+  voiceButton.fontSize = 28;
+  voiceButton.color = "#000000";
+  voiceButton.background = "#00FF00"; 
+  voiceButton.horizontalAlignment =
+    BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+  voiceButton.verticalAlignment =
+    BABYLON.GUI.Control.VERTICAL_ALIGNMENT_LEFT;
+  voiceButton.zIndex = 1000; 
   ui.addControl(voiceButton);
+
 
   // ========================= VOICE RECOGNITION =========================
 
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition || null;
+console.log("DEBUG: Entering voice recognition setup…");  
 
-  if (!SpeechRecognition) {
-    statusText.text += "\nVoice control not supported in this browser.";
-  } else {
-    recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.lang = "en-US";
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
-    recognition.onresult = (event) => {
-      const last = event.results[event.results.length - 1];
-      const transcript = last[0].transcript.trim().toLowerCase();
-      handleVoiceCommand(transcript);
-    };
+console.log("DEBUG: SpeechRecognition object =", SpeechRecognition);  
 
-    recognition.onerror = (e) => {
-      console.error("Voice error:", e);
-      statusText.text = "Voice error. Try turning Voice OFF and ON again.";
+if (!SpeechRecognition) {
+  statusText.text += "\nVoice control not supported in this browser.";
+  console.warn("DEBUG: Browser does NOT support SpeechRecognition.");  
+  voiceButton.textBlock.text = "Voice: N/A";
+  voiceButton.background = "#AAAAAA";
+  voiceButton.color = "#555555";
+  voiceButton.isEnabled = false;
+} else {
+  recognition = new SpeechRecognition();
+  console.log("DEBUG: SpeechRecognition successfully created.", recognition);  
+
+  recognition.continuous = true;
+  recognition.lang = "en-US";
+
+  recognition.onresult = (event) => {
+    const last = event.results[event.results.length - 1];
+    const transcript = last[0].transcript.trim().toLowerCase();
+    console.log("DEBUG: Voice recognized:", transcript);  
+    handleVoiceCommand(transcript);
+  };
+
+  recognition.onerror = (e) => {
+    console.error("DEBUG: Voice error:", e);  
+    statusText.text = "Voice error. Try turning Voice OFF and ON again.";
+    voiceActive = false;
+    voiceButton.textBlock.text = "Voice: OFF";
+  };
+
+  voiceButton.onPointerUpObservable.add(() => {
+    if (!voiceActive) {
+      try {
+        console.log("DEBUG: Trying to start recognition…");  
+        recognition.start();
+        voiceActive = true;
+        voiceButton.textBlock.text = "Voice: ON";
+        statusText.text =
+          "Voice ON. Try saying: 'fire', 'start game', 'slow mode'.";
+      } catch (e) {
+        console.error("DEBUG: Failed to start recognition:", e);  
+        statusText.text =
+          "Failed to start voice. Check microphone permissions.";
+      }
+    } else {
+      console.log("DEBUG: Stopping recognition…");  
+      recognition.stop();
       voiceActive = false;
       voiceButton.textBlock.text = "Voice: OFF";
-    };
+      statusText.text = "Voice OFF.";
+    }
+  });
+}
 
-    voiceButton.onPointerUpObservable.add(() => {
-      if (!voiceActive) {
-        try {
-          recognition.start();
-          voiceActive = true;
-          voiceButton.textBlock.text = "Voice: ON";
-          statusText.text = "Voice ON. Try saying: 'fire', 'start game', 'slow mode'.";
-        } catch (e) {
-          console.error("Failed to start voice:", e);
-        }
-      } else {
-        recognition.stop();
-        voiceActive = false;
-        voiceButton.textBlock.text = "Voice: OFF";
-        statusText.text = "Voice OFF.";
-      }
-    });
-  }
+console.log("DEBUG: Voice setup finished.");  
+
 
   function handleVoiceCommand(text) {
     console.log("Voice:", text);
@@ -362,6 +388,7 @@ async function createScene(engine, canvas) {
       statusText.text = "Normal difficulty from voice command.";
     }
   }
+
 
   // ======================= 3D MODEL LOADING ======================
   try {
